@@ -1,6 +1,6 @@
 # Tryout
 
-**An open usability test kit. One HTML file to send, one file back, every session replayable.**
+**Usability testing for SMBs and startups.** One HTML file to send, one file back, every session replayable. No account, no per-seat fee.
 
 Tryout turns a prototype into an unmoderated usability test that you can email to anyone. Participants open the file, work through a few short story tasks on the live prototype, and send back one results file. You replay every session with the cursor, the clicks, their voice and, if they chose to, their camera. Nothing is installed, nothing is uploaded, and no account is needed on either side.
 
