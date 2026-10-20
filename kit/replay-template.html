@@ -1,0 +1,218 @@
+<title>Tryout Session Replay</title>
+<style>
+  .stage{position:relative}
+  .cam{position:absolute;right:14px;bottom:96px;width:22%;max-width:240px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);background:#000;z-index:3}
+  [hidden]{display:none!important}/*PLAYER_CSS*/</style>
+<style>
+  /* Tryout look: plum-black header, system font, violet for actions, coral labels.
+     Layout: participants on the left, the replay with its task moments on the right. */
+  :root{
+    --navy:#201E2B; --bg:#F4F5F8; --panel:#FFFFFF; --ink:#201E2B; --ink-2:#4B5566; --muted:#7A8190; --line:#E3E6EC;
+    --blue:#6D5DF6; --flame:#FF7A59; --tint:#EEF2FC; --yes:#1C7A46; --yes-bg:#E3F3E9; --part:#8A5A00; --part-bg:#FCF1DC; --no:#6F7787; --no-bg:#EEF0F3;
+    --font:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#0F1729; --panel:#16203A; --ink:#EEF2F8; --ink-2:#B9C3D6; --muted:#8D98AE; --line:#2A3A5E; --blue:#5E9BF0; --tint:#1E2F55;
+    --yes:#62CF93; --yes-bg:#14301F; --part:#F0C06A; --part-bg:#33280F; --no:#9AA4B8; --no-bg:#1C2640; color-scheme:dark } }
+  :root[data-theme="dark"]{
+    --bg:#0F1729; --panel:#16203A; --ink:#EEF2F8; --ink-2:#B9C3D6; --muted:#8D98AE; --line:#2A3A5E; --blue:#5E9BF0; --tint:#1E2F55;
+    --yes:#62CF93; --yes-bg:#14301F; --part:#F0C06A; --part-bg:#33280F; --no:#9AA4B8; --no-bg:#1C2640; color-scheme:dark }
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font)}
+  .top{background:#201E2B;color:#fff;padding:14px 16px}
+  .top .in{max-width:1320px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .top b{font-size:17px}
+  .top small{color:#AFC3EA;font-size:12.5px}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:8px 14px;font:700 13.5px var(--font);cursor:pointer}
+  .btn.primary{background:#6D5DF6;border-color:#6D5DF6;color:#fff}
+  .btn:focus-visible,.who:focus-visible,.mk:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .grow{flex:1}
+  .wrap{max-width:1320px;margin:0 auto;padding:16px;box-sizing:border-box}
+  .empty{background:var(--panel);border:2px dashed var(--line);border-radius:12px;padding:48px 24px;text-align:center;display:grid;gap:10px;justify-items:center}
+  .empty.drag{border-color:var(--blue);background:var(--tint)}
+  .empty h1{margin:0;font-size:22px}
+  .empty p{margin:0;max-width:60ch;color:var(--ink-2)}
+  .steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:760px;margin-top:10px;text-align:left}
+  .steps div{background:var(--bg);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink-2)}
+  .steps b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
+  .grid{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start}
+  .list{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .list h2,.card h2{margin:0;padding:12px 14px;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--flame);border-bottom:1px solid var(--line)}
+  .who{all:unset;cursor:pointer;display:grid;gap:2px;padding:10px 14px;border-bottom:1px solid var(--line);width:100%;box-sizing:border-box}
+  .who[aria-current="true"]{background:var(--tint)}
+  .who b{font-size:14px}
+  .who span{font-size:12px;color:var(--ink-2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+  .card + .card{margin-top:16px}
+  .head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .head h3{margin:0;font-size:18px}
+  .head span{color:var(--ink-2);font-size:13px}
+  .stage{padding:12px;background:var(--bg);display:grid;place-items:center;min-height:200px}
+  .stage .note{color:var(--muted);font-size:13px;padding:40px 0}
+  .voice{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);flex-wrap:wrap}
+  .voice label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .moments{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0}
+  .mk{all:unset;cursor:pointer;display:grid;grid-template-columns:48px 1fr;gap:8px;padding:9px 16px;border-bottom:1px solid var(--line);font-size:13px}
+  .mk:hover{background:var(--tint)}
+  .mk .t{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;color:var(--ink-2);background:var(--bg)}
+  td small{display:block;color:var(--ink-2)}
+  .c{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap}
+  .c.y{background:var(--yes-bg);color:var(--yes)} .c.p{background:var(--part-bg);color:var(--part)} .c.n{background:var(--no-bg);color:var(--no)}
+  .tbl{overflow-x:auto}
+  .rr-player{box-shadow:none!important;border-radius:8px;overflow:hidden}
+  .replayer-mouse{width:24px!important;height:24px!important;background-size:24px 24px!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  .replayer-mouse.active::after{content:"";position:absolute;left:-14px;top:-14px;width:44px;height:44px;border-radius:50%;background:rgba(229,74,36,.35);border:2px solid #FF7A59;animation:rrclick .5s ease-out both}
+  @keyframes rrclick{from{transform:scale(.4);opacity:1}to{transform:scale(1.2);opacity:0}}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} .steps{grid-template-columns:1fr} }
+</style>
+
+<header class="top"><div class="in">
+  <b>Usability session replay</b><small>Watch usability sessions from participants' results files</small>
+  <span class="grow"></span>
+  <button class="btn" id="copyAll" type="button" hidden>Copy summaries for analysis</button>
+  <label class="btn primary" for="files" style="cursor:pointer">Open results files</label>
+  <input type="file" id="files" accept=".txt,.json,text/plain" multiple hidden>
+</div></header>
+
+<main class="wrap">
+  <section class="empty" id="empty">
+    <h1>Drop results files here</h1>
+    <p>Each participant downloads one file at the end of the test. Open one or several here to watch what they did, hear them think aloud, and jump to each task.</p>
+    <div class="steps">
+      <div><b>1. Collect</b>Participants send you their file, for example Timesheet-usability-P01-2026-10-02-1430-K7P2.txt.</div>
+      <div><b>2. Open</b>Drop the files on this page or use Open results files. Nothing is uploaded anywhere.</div>
+      <div><b>3. Watch</b>Pick a participant. Use the task moments to jump to where they started, got stuck or finished.</div>
+    </div>
+  </section>
+  <section class="grid" id="view" hidden>
+    <aside class="list"><h2>Participants</h2><div id="people"></div></aside>
+    <div id="detail"></div>
+  </section>
+</main>
+
+<script>/*PLAYER_JS*/</script>
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const mmss = (ms) => { const s = Math.max(0, Math.round(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+  const Player = window.rrwebPlayer && (window.rrwebPlayer.default || window.rrwebPlayer.Player);
+  const people = [];
+  let current = -1, player = null, audio = null, cam = null;
+  const videos = {};   // camera files by name, matched to participants by the file name in their results
+
+  function parse(text, name){
+    const i = text.indexOf("--- machine-readable ---");
+    if (i < 0) throw new Error("no data block");
+    const data = JSON.parse(text.slice(i + 24).trim());
+    data.file = name;
+    data.summary = text.slice(0, i).trim();   // the readable part, without the recording
+    return data;
+  }
+  const matchVideos = () => people.forEach((p) => { const f = p.recording?.camera?.file; if (f && videos[f]) p.cameraUrl = videos[f]; });
+  async function load(files){
+    for (const f of files){
+      if (/\.(webm|mp4)$/i.test(f.name)){ videos[f.name] = URL.createObjectURL(f); continue; }
+      try { people.push(parse(await f.text(), f.name)); } catch { people.push({ file:f.name, broken:true }); }
+    }
+    matchVideos();
+    if (!people.length) return;
+    $("empty").hidden = true; $("view").hidden = false; $("copyAll").hidden = false;
+    renderList(); select(current < 0 ? 0 : current);
+  }
+  $("files").onchange = (e) => load([...e.target.files]);
+  // All readable summaries in one block, ready to paste into the findings prompt.
+  $("copyAll").onclick = async () => {
+    const b = $("copyAll"), all = people.filter((p) => !p.broken).map((p) => p.summary).join("\n\n==========\n\n");
+    let ok = true;
+    try { await navigator.clipboard.writeText(all); }
+    catch { const ta = document.createElement("textarea"); ta.value = all; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand("copy"); } catch { ok = false; } ta.remove(); }
+    b.textContent = ok ? `Copied ${people.filter((p) => !p.broken).length} summaries` : "Copy failed"; setTimeout(() => { b.textContent = "Copy summaries for analysis"; }, 2500);
+  };
+  const zone = document.body;
+  zone.addEventListener("dragover", (e) => { e.preventDefault(); $("empty").classList.add("drag"); });
+  zone.addEventListener("dragleave", () => $("empty").classList.remove("drag"));
+  zone.addEventListener("drop", (e) => { e.preventDefault(); $("empty").classList.remove("drag"); load([...e.dataTransfer.files]); });
+
+  const done = (p) => (p.results || []).filter((r) => r.status === "completed" || r.status === "self").length;
+  function renderList(){
+    $("people").innerHTML = people.map((p, k) => p.broken
+      ? `<button class="who" disabled><b>${esc(p.file)}</b><span>Could not read this file</span></button>`
+      : `<button class="who" data-k="${k}" aria-current="${k===current}"><b>${esc(p.who || `Participant ${k+1}`)}</b><span>${new Date(p.started).toLocaleDateString()} · ${done(p)} of ${(p.results||[]).length} tasks · ${p.recording ? [p.recording.audio ? "screen and voice" : "screen only", p.recording.camera ? "camera" : ""].filter(Boolean).join(" + ") : "no recording"}</span></button>`).join("");
+    $("people").querySelectorAll(".who[data-k]").forEach((b) => b.onclick = () => select(+b.dataset.k));
+  }
+
+  const STATUS = { completed:["y","Completed"], self:["p","Said done"], skipped:["n","Skipped"] };
+  function select(k){
+    current = k; renderList();
+    const p = people[k]; if (!p || p.broken) return;
+    try { player?.pause(); } catch {}
+    audio?.pause(); audio = null; cam?.pause(); cam = null; player = null;
+    const rec = p.recording, ev = rec?.events || [];
+    const start = ev[0]?.timestamp || 0;
+    const moments = ev.filter((e) => e.type === 5 && e.data?.tag === "marker").map((e) => ({ at: e.timestamp - start, label: e.data.payload?.label || "" }));
+    const mins = p.finished && p.started ? Math.max(1, Math.round((new Date(p.finished) - new Date(p.started))/60000)) : "?";
+    $("detail").innerHTML = `
+      <div class="card">
+        <div class="head"><h3>${esc(p.who || `Participant ${k+1}`)}</h3><span>${new Date(p.started).toLocaleString()} · ${mins} min · ${done(p)} of ${(p.results||[]).length} tasks done</span></div>
+        <div class="stage" id="stage">${ev.length ? "" : `<p class="note">This file has no recording. The participant turned it off, or used an older version of the test.</p>`}${p.cameraUrl ? `<video class="cam" id="cam" src="${p.cameraUrl}" muted playsinline preload="auto"></video>` : ""}</div>
+        ${rec?.camera && !p.cameraUrl ? `<div class="voice"><span>This participant also recorded their camera. Drop <b>${esc(rec.camera.file)}</b> on this page to see it.</span></div>` : ""}
+        ${p.cameraUrl ? `<div class="voice"><label><input type="checkbox" id="camOn" checked> Show their camera</label></div>` : ""}
+        ${rec?.audio ? `<div class="voice"><label><input type="checkbox" id="voiceOn" checked> Play their voice with the replay</label><span>Voice starts ${mmss(Math.max(0,(rec.audioAt||start)-start))} into the session.</span></div>` : ev.length ? `<div class="voice">No voice recording in this session.</div>` : ""}
+      </div>
+      ${moments.length ? `<div class="card"><h2>Task moments</h2><div class="moments">${moments.map((m) => `<button class="mk" data-at="${m.at}"><span class="t">${mmss(m.at)}</span><span>${esc(m.label)}</span></button>`).join("")}</div></div>` : ""}
+      <div class="card"><h2>Results</h2><div class="tbl"><table>
+        <thead><tr><th>Task</th><th>Outcome</th><th>Time</th><th>Ease</th><th>Notes</th></tr></thead>
+        <tbody>${(p.results||[]).map((r, i) => { const s = STATUS[r.status] || ["n","Not reached"];
+          return `<tr><td>${i+1}. ${esc(r.title)}</td><td><span class="c ${s[0]}">${s[1]}</span></td><td>${mmss((r.secs||0)*1000)}${r.hints?`<small>${r.hints} hint</small>`:""}</td><td>${r.ease ? r.ease + "/5" : "-"}</td><td>${esc(r.reason || "")}${r.comment ? `<small>“${esc(r.comment)}”</small>` : ""}</td></tr>`; }).join("")}</tbody>
+      </table></div>
+      <div class="head" style="border:0"><span>Overall ease ${p.closing?.overall ?? "-"}/5 · Would use ${p.closing?.likely ?? "-"}/5${p.closing?.change ? ` · Would change: “${esc(p.closing.change)}”` : ""}</span></div></div>`;
+    if (!ev.length || !Player) return;
+    const stage = $("stage");
+    const w = Math.max(320, stage.clientWidth - 24);
+    const meta = ev.find((e) => e.type === 4)?.data || { width:1440, height:900 };
+    const h = Math.round(w * (meta.height / meta.width));
+    player = new Player({ target: stage, props: { events: ev, width: w, height: Math.min(h, 720), autoPlay: false, skipInactive: !rec.audio, showController: true, mouseTail: { strokeStyle: "#FF7A59", lineWidth: 2, duration: 700 } } });
+    document.querySelectorAll(".mk").forEach((b) => b.onclick = () => { player.goto(+b.dataset.at, true); stage.scrollIntoView({ block:"start", behavior:"smooth" }); });
+    if (rec.audio){
+      audio = new Audio(rec.audio); audio.preload = "auto";
+      const offset = (rec.audioAt || start) - start;
+      let cur = 0, playing = false;
+      const sync = (force) => {
+        if (!audio) return;
+        if (!$("voiceOn")?.checked){ audio.pause(); return; }
+        const want = (cur - offset) / 1000;
+        const dur = isFinite(audio.duration) ? audio.duration : Infinity;
+        if (want < 0 || want > dur){ audio.pause(); return; }
+        try { audio.playbackRate = player.getReplayer().config.speed || 1; } catch {}
+        if (force || Math.abs(audio.currentTime - want) > 0.4) audio.currentTime = want;
+        if (playing && audio.paused) audio.play().catch(() => {});
+      };
+      player.addEventListener("ui-update-current-time", (e) => { cur = e.payload; if (playing) sync(false); });
+      player.addEventListener("ui-update-player-state", (e) => { playing = e.payload === "playing"; if (playing) sync(true); else audio?.pause(); });
+      $("voiceOn").onchange = () => sync(true);
+    }
+    if (p.cameraUrl){
+      cam = $("cam");
+      const offset = (rec.camera?.at || start) - start;
+      let cur = 0, playing = false;
+      const sync = (force) => {
+        if (!cam) return;
+        cam.hidden = !$("camOn")?.checked; if (cam.hidden){ cam.pause(); return; }
+        const want = (cur - offset) / 1000;
+        const dur = isFinite(cam.duration) ? cam.duration : Infinity;
+        if (want < 0 || want > dur){ cam.pause(); return; }
+        try { cam.playbackRate = player.getReplayer().config.speed || 1; } catch {}
+        if (force || Math.abs(cam.currentTime - want) > 0.4) cam.currentTime = want;
+        if (playing && cam.paused) cam.play().catch(() => {});
+      };
+      player.addEventListener("ui-update-current-time", (e) => { cur = e.payload; if (playing) sync(false); });
+      player.addEventListener("ui-update-player-state", (e) => { playing = e.payload === "playing"; if (playing) sync(true); else cam?.pause(); });
+      $("camOn").onchange = () => sync(true);
+    }
+  }
+})();
+</script>

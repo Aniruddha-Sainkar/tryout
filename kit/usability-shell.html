@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tryout Usability Session</title>
+<!--
+  TRYOUT USABILITY TEST SHELL  ·  v1.0  ·  MIT licence
+  This file is the fixed frame of every Tryout usability test. Do not edit it per project.
+  A test is this shell plus two project files, merged by build.py or builder.html:
+    test-config.js   the words and the tasks            -> replaces the UT:CONFIG marker below
+    prototype.html   the prototype being tested          -> replaces the UT:PROTOTYPE marker below
+  Everything the shell owns is prefixed "ut-" (classes, ids, CSS variables) so it cannot collide
+  with the prototype. The contract between the two is in PROMPT.md, section "The contract".
+-->
+<style>
+  /* Tryout look: plum-black opening screens with white titles and a gold second line, coral for small
+     emphasis labels, violet for actions, generous white space.
+     Layout: slim top bar, the current task on the left, the live prototype on the right. */
+  :root{
+    --ut-navy:#201E2B; --ut-navy-2:#2B2838; --ut-blue:#6D5DF6; --ut-sky:#F4C95D; --ut-mist:#D9D4F5; --ut-deep:#4B3FD1;
+    --ut-flame:#FF7A59; --ut-slate:#5A5668; --ut-silver:#E8E6EF;
+    --ut-bg:#F6F5F9; --ut-panel:#FFFFFF; --ut-ink:#1E1B2E; --ut-ink-2:#4E4A63; --ut-muted:#7D7995; --ut-line:#E6E3EE;
+    --ut-tint:#F0EDFA; --ut-ok:#1C8A5A; --ut-on-blue:#FFFFFF;
+    --ut-scrim:rgba(32,30,43,.55);
+    --ut-font:Inter,"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --ut-ease:cubic-bezier(.22,.61,.36,1);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --ut-bg:#141221; --ut-panel:#201E2B; --ut-ink:#F1EFF8; --ut-ink-2:#BDB8D4; --ut-muted:#8E89A8; --ut-line:#343046;
+    --ut-tint:#2A2740; --ut-ok:#5CD29A; --ut-blue:#8B7CFF; --ut-scrim:rgba(8,6,16,.66); color-scheme:dark } }
+  :root[data-theme="dark"]{
+    --ut-bg:#141221; --ut-panel:#201E2B; --ut-ink:#F1EFF8; --ut-ink-2:#BDB8D4; --ut-muted:#8E89A8; --ut-line:#343046;
+    --ut-tint:#2A2740; --ut-ok:#5CD29A; --ut-blue:#8B7CFF; --ut-scrim:rgba(8,6,16,.66); color-scheme:dark }
+
+  html,body{height:100%;margin:0}
+  .ut-top [hidden],.ut-panel [hidden],.ut-cover [hidden]{display:none!important}
+  body{background:var(--ut-bg);color:var(--ut-ink);font-family:var(--ut-font);font-size:14px;line-height:1.5;overflow:hidden}
+  .ut{height:100%;display:grid;grid-template-rows:auto 1fr;gap:12px;padding:12px 16px;box-sizing:border-box}
+  .ut-top button,.ut-panel button,.ut-panel textarea,.ut-cover button,.ut-cover input,.ut-cover textarea{font-family:var(--ut-font)}
+  .ut-top :focus-visible,.ut-panel :focus-visible,.ut-cover :focus-visible{outline:2px solid var(--ut-blue);outline-offset:2px}
+
+  /* Top bar */
+  .ut-top{display:flex;align-items:center;gap:16px;background:var(--ut-panel);border:1px solid var(--ut-line);border-radius:8px;padding:10px 16px;min-width:0}
+  .ut-wordmark{font-weight:800;font-size:17px;letter-spacing:-.01em;display:inline-flex;align-items:baseline;gap:2px}
+  .ut-wordmark i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ut-sky)}
+  .ut-cover .ut-wordmark{font-size:19px;color:#fff}
+  .ut-top .ut-sep{width:1px;height:20px;background:var(--ut-line)}
+  .ut-top .ut-name{font-weight:700;font-size:14px;white-space:nowrap}
+  .ut-steps{flex:1;display:flex;gap:4px;min-width:60px;max-width:420px;margin-left:auto}
+  .ut-steps i{flex:1;height:4px;border-radius:2px;background:var(--ut-line);transition:background .4s var(--ut-ease)}
+  .ut-steps i.ut-done{background:var(--ut-blue)}
+  .ut-steps i.ut-skip{background:var(--ut-mist)}
+  .ut-steps i.ut-now{background:var(--ut-flame)}
+  .ut-count{font-size:12px;color:var(--ut-muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ut-recdot{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ut-flame);white-space:nowrap}
+  .ut-recdot i{width:8px;height:8px;border-radius:50%;background:var(--ut-flame);animation:blink 1.6s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .ut-consent{display:grid;gap:10px;margin-top:2px}
+  .ut-consent label{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;font-size:14px;color:#fff;cursor:pointer}
+  .ut-consent input{margin:3px 0 0;width:16px;height:16px;accent-color:#6D5DF6}
+  .ut-consent small{display:block;color:#B5AFD1;font-size:12.5px;line-height:1.4}
+  .ut-linkbtn{background:none;border:0;color:var(--ut-ink-2);font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:2px}
+  .ut-linkbtn.ut-warn{color:var(--ut-flame)}
+
+  /* Body */
+  .ut-body{display:grid;grid-template-columns:360px 1fr;gap:12px;min-height:0}
+  .ut-panel{background:var(--ut-panel);border:1px solid var(--ut-line);border-radius:8px;overflow:auto;min-height:0}
+  .ut-panel-in{padding:24px 22px;display:flex;flex-direction:column;gap:16px;transition:opacity .18s var(--ut-ease),transform .24s var(--ut-ease)}
+  .ut-panel-in.ut-out{opacity:0;transform:translateY(6px)}
+  /* The prototype lives in #ut-proto. contain:layout keeps its fixed-position layers inside the stage. */
+  .ut-stage{contain:layout;position:relative;border:1px solid var(--ut-line);border-radius:8px;overflow:hidden;background:#fff;min-height:0}
+  #ut-proto{height:100%;width:100%;position:relative;overflow:auto;color:#1E1B2E}
+  .ut-gate{position:absolute;inset:0;z-index:2000000;background:var(--ut-scrim);display:grid;place-items:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .35s var(--ut-ease)}
+  .ut-gate.ut-show{opacity:1;pointer-events:auto}
+  .ut-gate p{margin:0;background:var(--ut-panel);color:var(--ut-ink);border-radius:8px;padding:12px 18px;font-size:14px;max-width:320px;text-align:center}
+
+  /* Task panel */
+  .ut-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ut-flame);margin:0}
+  h1.ut-task{font-size:24px;font-weight:700;line-height:1.2;margin:0;text-wrap:balance}
+  .ut-story{font-size:15px;line-height:1.55;color:var(--ut-ink-2);margin:0}
+  .ut-story b{color:var(--ut-ink)}
+  .ut-story b:last-child{display:block;margin-top:8px;color:var(--ut-ink)}
+  .ut-goal{background:var(--ut-tint);border-radius:8px;padding:12px 14px}
+  .ut-goal b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ut-blue);margin-bottom:4px}
+  .ut-goal span{font-size:15px;font-weight:700;color:var(--ut-ink);line-height:1.4}
+  .ut-aside{font-size:12.5px;color:var(--ut-muted);margin:0}
+  .ut-subs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .ut-subs li{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;font-size:13.5px;color:var(--ut-ink-2);transition:color .3s}
+  .ut-subs .ut-box{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ut-line);box-sizing:border-box;display:grid;place-items:center;margin-top:1px;transition:background .3s var(--ut-ease),border-color .3s}
+  .ut-subs li.ut-on{color:var(--ut-ink)}
+  .ut-subs li.ut-on .ut-box{background:var(--ut-ok);border-color:var(--ut-ok)}
+  .ut-subs .ut-box svg{opacity:0;transform:scale(.4);transition:opacity .2s,transform .3s var(--ut-ease)}
+  .ut-subs li.ut-on .ut-box svg{opacity:1;transform:scale(1)}
+  .ut-subs li.ut-opt .ut-lbl::after{content:" · bonus";color:var(--ut-flame);font-size:12px}
+  .ut-note{font-size:13px;border-radius:8px;padding:10px 12px;background:var(--ut-tint);color:var(--ut-ink);opacity:1;transition:opacity .3s}
+  .ut-note b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ut-flame);margin-bottom:2px}
+  .ut-foot{display:flex;align-items:center;gap:10px;border-top:1px solid var(--ut-line);padding-top:14px;flex-wrap:wrap}
+  .ut-clock{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ut-muted);margin-right:auto}
+  .ut-clock .ut-ring-bg{stroke:var(--ut-line)}
+  .ut-clock .ut-ring{stroke:var(--ut-blue);transition:stroke-dashoffset 1s linear,stroke .4s}
+  .ut-clock.ut-over .ut-ring{stroke:var(--ut-muted)}
+  .ut-clock .ut-mm{font-weight:700;color:var(--ut-ink);font-variant-numeric:tabular-nums}
+  .ut-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .ut-btn{border:1px solid var(--ut-line);background:var(--ut-panel);color:var(--ut-ink);border-radius:6px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s,border-color .2s,transform .12s,box-shadow .2s}
+  .ut-btn:hover{border-color:var(--ut-ink-2)}
+  .ut-btn:active{transform:scale(.98)}
+  .ut-btn.ut-primary{background:var(--ut-blue);border-color:var(--ut-blue);color:var(--ut-on-blue)}
+  .ut-btn.ut-primary:hover{box-shadow:0 4px 14px rgba(29,110,228,.28)}
+  .ut-btn.ut-ghost{border-color:transparent;color:var(--ut-ink-2);font-weight:400}
+  .ut-btn.ut-ghost:hover{border-color:var(--ut-line)}
+
+  /* Result */
+  .ut-won{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+  .ut-won h2{font-size:22px;font-weight:700;line-height:1.2;margin:0 0 4px}
+  .ut-won p{margin:0;font-size:13.5px;color:var(--ut-ink-2)}
+  .ut-medal{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--ut-navy);color:#fff;box-shadow:0 0 0 3px var(--ut-sky);position:relative}
+  .ut-medal svg{width:24px;height:24px}
+  .ut-medal.ut-pop{animation:pop .55s var(--ut-ease) both}
+  .ut-medal.ut-soft{background:transparent;color:var(--ut-muted);box-shadow:0 0 0 1.5px var(--ut-muted)}
+  @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+  .ut-q{display:grid;gap:10px}
+  .ut-ql{font-size:14px;font-weight:700}
+  .ut-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .ut-scale button{border:1px solid var(--ut-line);background:var(--ut-panel);color:var(--ut-ink);border-radius:6px;padding:9px 2px 7px;cursor:pointer;display:grid;gap:2px;justify-items:center;transition:background .2s,border-color .2s,color .2s}
+  .ut-scale button:hover{border-color:var(--ut-blue)}
+  .ut-scale button b{font-size:15px}
+  .ut-scale button small{font-size:10.5px;color:var(--ut-muted);line-height:1.15;text-align:center}
+  .ut-scale button[aria-pressed="true"]{background:var(--ut-blue);border-color:var(--ut-blue);color:#fff}
+  .ut-scale button[aria-pressed="true"] small{color:#fff}
+  .ut-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .ut-chips button{border:1px solid var(--ut-line);background:var(--ut-panel);color:var(--ut-ink-2);border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer;transition:background .2s,color .2s}
+  .ut-chips button[aria-pressed="true"]{background:var(--ut-navy);border-color:var(--ut-navy);color:#fff}
+  .ut-panel textarea:focus,.ut-cover textarea:focus,.ut-cover input[type="text"]:focus{outline:none;border-color:var(--ut-blue);box-shadow:0 0 0 1px var(--ut-blue)}
+  .ut-panel textarea,.ut-cover textarea,.ut-cover input[type="text"]{width:100%;box-sizing:border-box;border:1px solid var(--ut-line);background:var(--ut-panel);color:var(--ut-ink);border-radius:6px;padding:9px 11px;font:14px/1.45 var(--ut-font);resize:vertical}
+  .ut-more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s var(--ut-ease)}
+  .ut-more.ut-open{grid-template-rows:1fr}
+  .ut-more > div{overflow:hidden}
+  .ut-stat{font-size:12px;color:var(--ut-muted)}
+
+  /* Cover screens (intro and finale): the template's navy opening slides */
+  .ut-cover{position:fixed;inset:0;z-index:3000000;background:#201E2B;color:#fff;display:flex;flex-direction:column;overflow:auto;transition:opacity .45s var(--ut-ease),visibility .45s}
+  .ut-cover.ut-gone{opacity:0;visibility:hidden;pointer-events:none}
+  .ut-cover-top{display:flex;align-items:center;justify-content:space-between;padding:28px clamp(20px,5vw,72px) 0}
+  .ut-cover-top img{height:26px}
+  .ut-cover-main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:32px;padding:24px clamp(20px,5vw,72px)}
+  .ut-slide{max-width:620px;display:flex;flex-direction:column;gap:18px;animation:rise .5s var(--ut-ease) both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .ut-cover h1{font-size:clamp(34px,5vw,54px);font-weight:700;line-height:1.05;margin:0;letter-spacing:-.01em}
+  .ut-cover h1 span{display:block;color:#F4C95D}
+  .ut-cover h2{font-size:clamp(22px,2.6vw,30px);font-weight:700;line-height:1.2;margin:0;text-wrap:balance}
+  .ut-cover .ut-year{font-size:15px;font-weight:700;color:#F4C95D;margin:0}
+  .ut-cover p{margin:0;font-size:16px;line-height:1.55;color:#DAD6EA;max-width:58ch}
+  .ut-cover .ut-em{color:#FF7A59;font-weight:700}
+  .ut-cover .ut-kicker{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#FF7A59;margin:0}
+  .ut-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:4px}
+  .ut-groups div{display:grid;gap:4px;align-content:start}
+  .ut-groups b{font-size:15px;color:#fff}
+  .ut-groups span{font-size:13.5px;color:#B5AFD1;line-height:1.45}
+  .ut-agenda{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(var(--ut-rows,4),auto);grid-auto-flow:column;gap:8px 28px}
+  .ut-agenda li{display:grid;grid-template-columns:48px 1fr;gap:8px;font-size:14.5px;color:#fff}
+  .ut-agenda .ut-tm{color:#F4C95D;font-weight:700;font-variant-numeric:tabular-nums}
+  .ut-cover label{font-size:13px;color:#B5AFD1}
+  .ut-cover input[type="text"]{background:transparent;border:1px solid #413C58;color:#fff;max-width:320px}
+  .ut-cover input[type="text"]:focus{border-color:#F4C95D;outline:none}
+  .ut-cover .ut-btn.ut-primary{background:#6D5DF6;border-color:#6D5DF6;color:#fff;padding:12px 22px;font-size:15px}
+  .ut-cover .ut-btn.ut-ghost{background:transparent;color:#B5AFD1}
+  .ut-cover .ut-btn.ut-ghost:hover{border-color:#413C58}
+  .ut-cover-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 clamp(20px,5vw,72px) 22px;font-size:11px;color:#8E89A8}
+  .ut-cover-foot .ut-dots{display:flex;gap:6px}
+  .ut-cover-foot .ut-dots i{width:18px;height:3px;border-radius:2px;background:#3A3550;transition:background .3s}
+  .ut-cover-foot .ut-dots i.ut-on{background:#F4C95D}
+  .ut-cover .ut-medals{display:flex;flex-wrap:wrap;gap:18px 12px}
+  .ut-cover .ut-medals figure{margin:0;display:grid;justify-items:center;align-content:start;gap:10px;width:86px;text-align:center}
+  .ut-cover .ut-medals figcaption{font-size:12px;line-height:1.3;color:#fff}
+  .ut-cover .ut-medals figcaption small{display:block;color:#8E89A8;font-size:11px}
+  .ut-cover .ut-medal.ut-soft{color:#8E89A8;box-shadow:0 0 0 1.5px #555070}
+  .ut-tally{display:flex;gap:36px;flex-wrap:wrap}
+  .ut-tally div{display:grid}
+  .ut-tally b{font-size:36px;font-weight:700;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+  .ut-tally span{font-size:12.5px;color:#B5AFD1}
+  .ut-cover .ut-scale button{background:transparent;border-color:#413C58;color:#fff}
+  .ut-cover .ut-scale button small{color:#B5AFD1}
+  .ut-cover .ut-scale button:hover{border-color:#F4C95D}
+  .ut-cover .ut-scale button[aria-pressed="true"]{background:#6D5DF6;border-color:#6D5DF6}
+  .ut-cover textarea{background:transparent;border-color:#413C58;color:#fff}
+  .ut-copied{font-size:13px;color:#9FE3BD;font-weight:700}
+  #ut-resultsText{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;min-height:120px}
+  .ut-sent{display:grid;gap:12px;animation:rise .4s var(--ut-ease) both}
+  .ut-sent ol{margin:0;padding-left:22px;display:grid;gap:8px;font-size:15px;color:#DAD6EA;list-style:decimal outside}
+  .ut-sent ol li{display:list-item}
+  .ut-sent ol li::marker{color:#F4C95D;font-weight:700}
+  .ut-sent ol b{color:#fff}
+  .ut-sent .ut-to{font-size:13px;color:#B5AFD1;user-select:all}
+  .ut-sent .ut-to span{color:#fff}
+  .ut-sent .ut-fineprint{font-size:13px;color:#8E89A8}
+  .ut-cover a.ut-btn{text-decoration:none;display:inline-block}
+
+  @media (max-width: 900px){
+    body{overflow:auto}
+    .ut{height:auto;min-height:100%}
+    .ut-body{grid-template-columns:1fr;grid-template-rows:auto minmax(560px,78vh)}
+    .ut-top .ut-name,.ut-top .ut-sep{display:none}
+    .ut-cover-main{grid-template-columns:1fr}
+    .ut-groups{grid-template-columns:1fr;gap:12px}
+    .ut-agenda{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+  .ut-error{background:#3A1410;border:1px solid #FF7A59;border-radius:8px;padding:14px 16px;color:#fff;font-size:14px}
+  .ut-error b{display:block;color:#FFB8A6;margin-bottom:6px}
+  .ut-error ul{margin:0;padding-left:18px;display:grid;gap:4px}
+</style>
+<script>
+/* The bridge. Defined before the prototype loads so the prototype can call it at any time.
+   UT.signal(type, detail)  the prototype reports something the participant did
+   UT.on("reset", fn)       return to the starting state (session start and Start over)
+   UT.on("setup", fn)       a task is about to begin; fn receives { task, ...that task's setup object }
+   UT.on("viewport", fn)    "mobile" or "desktop", when the prototype cannot rely on CSS alone */
+window.UT = {
+  active: true,
+  signal(type, detail){ window.dispatchEvent(new CustomEvent("ut:signal", { detail: Object.assign({}, detail || {}, { type: String(type) }) })); },
+  on(name, fn){ window.addEventListener("ut:" + name, (e) => fn(e.detail)); }
+};
+</script>
+</head>
+<body>
+<div class="ut" id="ut-app">
+  <header class="ut-top">
+    <span class="ut-wordmark">Tryout<i></i></span>
+    <span class="ut-sep"></span>
+    <span class="ut-name" id="ut-name">Usability session</span>
+    <div class="ut-steps" id="ut-steps" aria-hidden="true"></div>
+    <span class="ut-recdot" id="ut-recdot" hidden><i></i><span id="ut-recdotText">Recording</span></span>
+    <span class="ut-count" id="ut-count"></span>
+    <button class="ut-linkbtn" id="ut-restart" type="button">Start over</button>
+  </header>
+  <div class="ut-body">
+    <aside class="ut-panel" aria-live="polite"><div class="ut-panel-in" id="ut-panel"></div></aside>
+    <main class="ut-stage" id="ut-stage" aria-label="Prototype">
+      <div id="ut-proto"><!--UT:PROTOTYPE--></div>
+      <div class="ut-gate" id="ut-gate"><p>Read your task, then press <b>Start task</b>.</p></div>
+    </main>
+  </div>
+</div>
+
+<section class="ut-cover" id="ut-intro" role="dialog" aria-modal="true" aria-label="Welcome">
+  <div class="ut-cover-top"><span class="ut-wordmark">Tryout<i></i></span></div>
+  <div class="ut-cover-main" id="ut-introMain"></div>
+  <div class="ut-cover-foot"><span>Confidential. For usability research only.</span><div class="ut-dots" id="ut-introDots"><i></i><i></i></div></div>
+</section>
+<section class="ut-cover ut-gone" id="ut-finale" role="dialog" aria-modal="true" aria-label="Session complete">
+  <div class="ut-cover-top"><span class="ut-wordmark">Tryout<i></i></span></div>
+  <div class="ut-cover-main" id="ut-finMain"></div>
+  <div class="ut-cover-foot"><span>Confidential. For usability research only.</span><div class="ut-dots" id="ut-finDots"><i></i><i></i></div></div>
+</section>
+
+<script>/*RRWEB_RECORD*/</script>
+<script>
+/*UT:CONFIG*/
+</script>
+<script>
+(function(){
+  const CFG = window.UT_CONFIG || {};
+  const $ = (id) => document.getElementById("ut-" + id);
+  const mq = window.matchMedia("(max-width: 900px)");
+  const emit = (name, detail) => window.dispatchEvent(new CustomEvent(name, { detail }));
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const mmss = (s) => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+  const slug = (s) => String(s || "").trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "");
+
+  // ---- What the project supplies (test-config.js) --------------------------------------------
+  const PROJECT = String(CFG.project || "Prototype");
+  const VERSION = String(CFG.version || "");
+  const MINUTES = CFG.minutes || 15;
+  const FIN = Object.assign({ kicker:"Session complete", title:"All tasks,", accent:"done." }, CFG.finale || {});
+  // Who receives the results by email. Set per project in test-config.js.
+  const RESULT_EMAILS = [].concat(CFG.resultsEmail || "").join(",").split(",").map((x) => x.trim()).filter(Boolean);
+  // Optional: a shared folder link participants can upload their file to instead of emailing it.
+  const UPLOAD_URL = String(CFG.uploadUrl || "");
+  // Optional: a web address that receives the results automatically (for example a Power Automate flow).
+  const SUBMIT_URL = String(CFG.submitUrl || "");
+  const TASKS = Array.isArray(CFG.tasks) ? CFG.tasks : [];
+
+  // Badge icons a task can use: badge:{ name:"…", icon:"<one of these>" }
+  const I = (d, extra) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"${extra||""}>${d}</svg>`;
+  const ICON = {
+    person:I('<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>'),
+    clock:I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+    mic:I('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>'),
+    clip:I('<path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8-8a3.3 3.3 0 0 1 4.7 4.7l-8 8a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3"/>'),
+    send:I('<path d="M3.5 11.2 20.5 4l-6.8 17-2.8-7.1-7.4-2.7Z"/><path d="m10.9 13.9 5-5"/>'),
+    route:I('<path d="M12 21V11M12 11 6 5M12 11l6-6M6 5v4M6 5h4M18 5v4M18 5h-4"/>'),
+    bell:I('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15L6 16.5ZM10 20.5a2.2 2.2 0 0 0 4 0"/>'),
+    graph:I('<circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="13" cy="17.5" r="2.5"/><path d="m8.3 8 8.9-1.3M7.3 9.2l4.5 6.2M17 8.3l-3 7"/>'),
+    check:I('<circle cx="12" cy="12" r="8.5"/><path d="m8 12.3 2.7 2.7L16 9.5"/>'),
+    star:I('<path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8L12 3.8Z"/>'),
+    search:I('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>'),
+    doc:I('<path d="M7 3.5h7l4 4V20.5H7V3.5Z"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5"/>'),
+    chat:I('<path d="M4.5 5.5h15v10h-8l-4 3.5v-3.5h-3v-10Z"/>'),
+    flag:I('<path d="M6 21V4M6 4.5h11l-2.2 3.7L17 12H6"/>'),
+    calendar:I('<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>'),
+    card:I('<rect x="3" y="6" width="18" height="12.5" rx="2"/><path d="M3 10.5h18M7 15h4"/>'),
+    lock:I('<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>'),
+    pencil:I('<path d="m5 19 .8-3.8L15.9 5.1a1.8 1.8 0 0 1 2.6 0l.4.4a1.8 1.8 0 0 1 0 2.6L8.8 18.2 5 19Z"/>'),
+    tick:'<svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>'
+  };
+  // The same scales and skip reasons in every Tryout test, so results compare across projects.
+  const EASE = ["Very hard","Hard","OK","Easy","Very easy"];
+  const LIKELY = ["Not at all","Unlikely","Maybe","Likely","Definitely"];
+  const SKIP_REASONS = ["Couldn't find it","Wasn't sure what to do","Something didn't work","Just moving on"];
+
+  // ---- Check the config before anyone sees the test ------------------------------------------
+  const problems = [];
+  if (!window.UT_CONFIG) problems.push("test-config.js did not set window.UT_CONFIG.");
+  if (!CFG.project) problems.push("project: the product name is missing.");
+  if (!CFG.pitch) problems.push("pitch: one or two sentences saying what the product is.");
+  if (!CFG.persona) problems.push("persona: one sentence saying who the participant is today.");
+  if (!RESULT_EMAILS.length) problems.push("resultsEmail: the address participants send their results file to.");
+  if (!TASKS.length) problems.push("tasks: add 5 to 7 tasks.");
+  if (TASKS.length > 9) problems.push("tasks: more than 9 is too long for one session.");
+  const seen = {};
+  TASKS.forEach((t, k) => {
+    const at = `Task ${k+1}${t && t.id ? ` (${t.id})` : ""}: `;
+    if (!t || typeof t !== "object"){ problems.push(at + "is not an object."); return; }
+    ["id","time","title","story","hint","win"].forEach((f) => { if (!t[f] || typeof t[f] !== "string") problems.push(at + `"${f}" is missing.`); });
+    if (seen[t.id]) problems.push(at + "id is used twice."); seen[t.id] = 1;
+    if (!t.badge || !t.badge.name) problems.push(at + "badge.name is missing.");
+    if (!t.badge || !ICON[t.badge.icon] || t.badge.icon === "tick") problems.push(at + `badge.icon must be one of: ${Object.keys(ICON).filter((x) => x !== "tick").join(", ")}.`);
+    if (typeof t.check !== "function") problems.push(at + "check(signal, t) is missing. It decides when the task is complete.");
+    if (!Array.isArray(t.subs) || !t.subs.length || t.subs.some((x) => !Array.isArray(x) || x.length < 2)) problems.push(at + 'subs must look like [["key","What the participant achieved"], …].');
+    if (t.setup && typeof t.setup !== "object") problems.push(at + "setup must be a plain object (it is passed to the prototype).");
+    if (t.story && !/<b>/.test(t.story)) console.warn("[usability shell] " + at + "the story has no <b>…</b> sentence. Put the ask in bold at the end.");
+    t.target = t.target || 120;
+  });
+
+  document.title = `${PROJECT} Usability Session`;
+  $("name").textContent = `${PROJECT} usability session`;
+  $("stage").setAttribute("aria-label", `${PROJECT} prototype`);
+
+  // ---- State -------------------------------------------------------------------------------------
+  let S;
+  const fresh = () => ({ sid: Math.random().toString(36).slice(2,6).toUpperCase(), who:"", started:null, i:0, phase:"intro", t0:0, tick:null,
+    results: TASKS.map((t) => ({ id:t.id, title:t.title, status:null, secs:0, hints:0, ease:null, comment:"", reason:"", subs:{}, trail:[], tips:[] })),
+    closing:{ overall:null, likely:null, change:"" }, hintOpen:false, tip:"", finishedAt:null });
+  S = fresh();
+  const R = () => S.results[S.i];
+  const T = () => TASKS[S.i];
+  const elapsed = () => S.t0 ? (Date.now()-S.t0)/1000 : 0;
+  const runSetup = (t) => { if (t && t.setup) emit("ut:setup", Object.assign({ task:t.id }, t.setup)); };
+
+  // ---- Session recording ---------------------------------------------------------------------
+  // Screen: an rrweb replay of this page only (DOM, clicks, typing, scrolling), no permission prompt.
+  // Voice: optional microphone audio for think-aloud; browsers allow it when the file is opened directly.
+  const inFrame = (() => { try { return window.self !== window.top; } catch { return true; } })();
+  // Camera is off unless the participant ticks it. It is saved as a separate small video file.
+  const REC = { want:{ screen:true, voice:!inFrame, camera:false }, events:[], stop:null, mr:null, stream:null, chunks:[], audioAt:0, audio:null, voice:"off",
+                cam:null, camStream:null, camChunks:[], camBlob:null, cameraAt:0, camera:"off" };
+  const recApi = () => (window.rrwebRecord && window.rrwebRecord.record) || null;
+  function paintRec(){
+    const on = !!REC.stop;
+    $("recdot").hidden = !on;
+    const parts = ["screen"]; if (REC.voice === "on") parts.push("voice"); if (REC.camera === "on") parts.push("camera");
+    $("recdotText").textContent = "Recording " + (parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0]);
+  }
+  function mark(label){ try { recApi()?.addCustomEvent("marker", { label }); } catch {} }
+  async function startRecording(){
+    REC.events = []; REC.chunks = []; REC.audio = null; REC.voice = "off"; REC.camChunks = []; REC.camBlob = null; REC.camera = "off";
+    const record = recApi();
+    if (REC.want.screen && record){
+      try {
+        REC.stop = record({ emit(e){ REC.events.push(e); }, sampling:{ mousemove:60, scroll:150, input:"last" }, inlineStylesheet:true, collectFonts:false, recordCanvas:false, slimDOMOptions:"all" });
+      } catch { REC.stop = null; }
+    }
+    paintRec();
+    if (REC.want.voice && navigator.mediaDevices?.getUserMedia && window.MediaRecorder){
+      try {
+        REC.stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        const type = ["audio/webm;codecs=opus","audio/webm","audio/mp4"].find((t) => MediaRecorder.isTypeSupported?.(t)) || "";
+        REC.mr = new MediaRecorder(REC.stream, type ? { mimeType:type, audioBitsPerSecond:24000 } : undefined);
+        REC.mr.ondataavailable = (e) => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+        REC.mr.start(1000); REC.audioAt = Date.now(); REC.voice = "on";
+      } catch { REC.voice = "denied"; }
+    }
+    if (REC.want.camera && navigator.mediaDevices?.getUserMedia && window.MediaRecorder){
+      try {
+        REC.camStream = await navigator.mediaDevices.getUserMedia({ video:{ width:{ ideal:320 }, height:{ ideal:240 }, frameRate:{ ideal:15 } } });
+        const type = ["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm","video/mp4"].find((t) => MediaRecorder.isTypeSupported?.(t)) || "";
+        REC.cam = new MediaRecorder(REC.camStream, type ? { mimeType:type, videoBitsPerSecond:160000 } : undefined);
+        REC.cam.ondataavailable = (e) => { if (e.data && e.data.size) REC.camChunks.push(e.data); };
+        REC.cam.start(1000); REC.cameraAt = Date.now(); REC.camera = "on";
+      } catch { REC.camera = "denied"; }
+    }
+    paintRec();
+  }
+  async function stopRecording(){
+    try { REC.stop?.(); } catch {}
+    REC.stop = null;
+    if (REC.mr && REC.mr.state !== "inactive"){
+      await new Promise((r) => { REC.mr.onstop = r; REC.mr.stop(); });
+    }
+    REC.stream?.getTracks().forEach((t) => t.stop());
+    if (REC.chunks.length){
+      const blob = new Blob(REC.chunks, { type: REC.mr?.mimeType || "audio/webm" });
+      REC.audio = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+    }
+    REC.mr = null; REC.stream = null;
+    if (REC.cam && REC.cam.state !== "inactive"){
+      await new Promise((r) => { REC.cam.onstop = r; REC.cam.stop(); });
+    }
+    REC.camStream?.getTracks().forEach((t) => t.stop());
+    if (REC.camChunks.length) REC.camBlob = new Blob(REC.camChunks, { type: REC.cam?.mimeType || "video/webm" });
+    REC.cam = null; REC.camStream = null;
+    paintRec();
+  }
+
+  // ---- Signals from the prototype ------------------------------------------------------------
+  // Every signal is logged with its time. The current task's check() decides what it means.
+  const api = {
+    tick(k){ if (!(k in R().subs)){ R().subs[k] = Math.round(elapsed()); paintSubs(); } },
+    has(k){ return k in R().subs; },
+    tip(m){ S.tip = m; R().tips.push(m); paintTip(); },
+    win(){ if (S.phase!=="active") return; mark(`Task ${S.i+1}: completed`); S.phase = "winning"; stopClock(); R().secs = Math.round(elapsed()); R().status = "completed";
+      setTimeout(() => { S.phase = "result"; render(true); if (mq.matches) $("app").scrollIntoView({ behavior:"smooth", block:"start" }); }, 1300); },
+  };
+  window.addEventListener("ut:signal", (e) => {
+    if (S.phase!=="active") return;
+    const s = e.detail || {};
+    R().trail.push({ at: Math.round(elapsed()), ...s });
+    try { T().check(s, api); } catch (err) { console.error("[usability shell] check() failed for task " + T().id, err); }
+  });
+
+  const startClock = () => { S.t0 = Date.now(); S.tick = setInterval(paintClock, 1000); };
+  const stopClock = () => { clearInterval(S.tick); S.tick = null; };
+
+  // ---- Main screen ---------------------------------------------------------------------------
+  const panel = $("panel");
+  function paintSteps(){
+    $("steps").innerHTML = TASKS.map((t,k) => { const r = S.results[k];
+      const c = r.status==="skipped" ? "ut-skip" : r.status ? "ut-done" : (k===S.i && S.phase!=="intro" && S.phase!=="done") ? "ut-now" : "";
+      return `<i class="${c}"></i>`; }).join("");
+    $("count").textContent = S.phase==="done" ? "All done" : `Task ${S.i+1} of ${TASKS.length}`;
+  }
+  // Sub-steps appear only once achieved, so the panel never tells the participant what to click.
+  const subsHtml = () => `<ul class="ut-subs" id="ut-subs">` + T().subs.filter(([k]) => k in R().subs).map(([k,label,opt]) =>
+      `<li class="ut-on${opt?" ut-opt":""}"><span class="ut-box">${ICON.tick}</span><span class="ut-lbl">${esc(label)}</span></li>`).join("") + `</ul>`;
+  function paintSubs(){ const el = $("subs"); if (el) el.outerHTML = subsHtml(); }
+  function paintTip(){ const el = $("tip"); if (el){ el.hidden = !S.tip; el.textContent = S.tip; } }
+  function paintClock(){
+    const el = $("clock"); if (!el) return;
+    const s = elapsed(), tg = T().target, f = Math.min(s/tg,1), C = 2*Math.PI*8;
+    el.classList.toggle("ut-over", s>=tg);
+    el.querySelector(".ut-ring").style.strokeDashoffset = String(C*(1-f));
+    el.querySelector(".ut-mm").textContent = mmss(s);
+    el.querySelector(".ut-msg").textContent = s < tg ? "Take your time" : "No rush";
+    const hb = $("hintBtn"); if (hb && s>=45 && !S.hintOpen) hb.hidden = false;
+  }
+  const head = () => { const t = T(); return `<h1 class="ut-task">${esc(t.title)}</h1><p class="ut-story">${t.story}</p>${t.aside?`<p class="ut-aside">${esc(t.aside)}</p>`:""}`; };
+
+  // Crossfade the panel between states so nothing jumps.
+  function render(animate){
+    paintSteps();
+    $("gate").classList.toggle("ut-show", S.phase==="brief");
+    if (!animate){ draw(); return; }
+    panel.classList.add("ut-out");
+    setTimeout(() => { draw(); panel.parentElement.scrollTop = 0; requestAnimationFrame(() => panel.classList.remove("ut-out")); }, 170);
+  }
+  function draw(){
+    const t = T(), r = R();
+    if (S.phase==="brief"){
+      panel.innerHTML = `${head()}
+        <div class="ut-row"><button class="ut-btn ut-primary" id="ut-go" type="button">Start task</button></div>`;
+      $("go").onclick = () => { S.phase = "active"; S.tip = ""; S.hintOpen = false; mark(`Task ${S.i+1} started: ${t.title}`); startClock(); render(false);
+        if (mq.matches) $("stage").scrollIntoView({ behavior:"smooth", block:"start" }); };
+      $("go").focus({ preventScroll:true });
+    } else if (S.phase==="active" || S.phase==="winning"){
+      const C = 2*Math.PI*8;
+      panel.innerHTML = `${head()}
+        ${subsHtml()}
+        <div class="ut-note" id="ut-tip" ${S.tip?"":"hidden"}>${esc(S.tip)}</div>
+        <div class="ut-note" id="ut-hint" ${S.hintOpen?"":"hidden"}><b>Hint</b>${esc(t.hint)}</div>
+        <div class="ut-foot">
+          <span class="ut-clock" id="ut-clock"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle class="ut-ring-bg" cx="10" cy="10" r="8" fill="none" stroke-width="2.5"/><circle class="ut-ring" cx="10" cy="10" r="8" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" transform="rotate(-90 10 10)"/></svg><span class="ut-mm">0:00</span><span class="ut-msg"></span></span>
+          <button class="ut-linkbtn" id="ut-hintBtn" type="button" hidden>Need a hint?</button>
+        </div>
+        <div class="ut-row"><button class="ut-btn ut-primary" id="ut-done" type="button">I'm done</button><button class="ut-btn ut-ghost" id="ut-skip" type="button">Skip this task</button></div>`;
+      paintClock();
+      $("done").onclick = () => { if (S.phase!=="active") return; mark(`Task ${S.i+1}: marked done`); stopClock(); r.secs = Math.round(elapsed()); r.status = "self"; S.phase = "result"; render(true); };
+      $("skip").onclick = () => { if (S.phase!=="active") return; mark(`Task ${S.i+1}: skipped`); stopClock(); r.secs = Math.round(elapsed()); r.status = "skipped"; S.phase = "result"; render(true); };
+      $("hintBtn").onclick = () => { S.hintOpen = true; r.hints++; mark(`Task ${S.i+1}: hint shown`); $("hint").hidden = false; $("hintBtn").hidden = true; };
+    } else if (S.phase==="result"){
+      const won = r.status!=="skipped";
+      const last = S.i === TASKS.length-1;
+      const top = won
+        ? `<div class="ut-won"><div class="ut-medal ut-pop">${ICON[t.badge.icon]}</div><div><p class="ut-label">Badge earned · ${esc(t.badge.name)}</p><h2>${r.status==="completed"?"Nicely done.":"Thanks, marked as done."}</h2><p>${esc(r.status==="completed"?t.win:"We'll look at how it went.")}</p></div></div>`
+        : `<div class="ut-won"><div class="ut-medal ut-soft">${ICON[t.badge.icon]}</div><div><h2>No problem at all.</h2><p>A skip shows us where the design needs work. That's a real help.</p></div></div>`;
+      const ask = won
+        ? `<div class="ut-q"><span class="ut-ql" id="ut-easeL">How easy was that?</span><div class="ut-scale" role="group" aria-labelledby="ut-easeL">${EASE.map((e,k)=>`<button type="button" data-v="${k+1}" aria-pressed="${r.ease===k+1}"><b>${k+1}</b><small>${e}</small></button>`).join("")}</div></div>`
+        : `<div class="ut-q"><span class="ut-ql" id="ut-whyL">What got in the way?</span><div class="ut-chips" role="group" aria-labelledby="ut-whyL">${SKIP_REASONS.map((e)=>`<button type="button" data-r="${esc(e)}" aria-pressed="${r.reason===e}">${esc(e)}</button>`).join("")}</div></div>`;
+      panel.innerHTML = `${top}${ask}
+        <div><button class="ut-linkbtn" id="ut-addC" type="button">Add a comment (optional)</button>
+          <div class="ut-more" id="ut-moreC"><div><textarea id="ut-cmt" rows="3" style="margin-top:8px" placeholder="What you expected, where you looked first…">${esc(r.comment)}</textarea></div></div></div>
+        <div class="ut-row"><button class="ut-btn ut-primary" id="ut-next" type="button">${last ? "Finish" : `Next · ${esc(TASKS[S.i+1].time)}`}</button></div>`;
+      panel.querySelectorAll(".ut-scale button").forEach((b) => b.onclick = () => { r.ease = +b.dataset.v; panel.querySelectorAll(".ut-scale button").forEach((x) => x.setAttribute("aria-pressed", String(x===b))); });
+      panel.querySelectorAll(".ut-chips button").forEach((b) => b.onclick = () => { r.reason = b.dataset.r; panel.querySelectorAll(".ut-chips button").forEach((x) => x.setAttribute("aria-pressed", String(x===b))); });
+      $("addC").onclick = () => { $("moreC").classList.add("ut-open"); $("addC").hidden = true; setTimeout(() => $("cmt").focus(), 250); };
+      $("cmt").oninput = (e) => { r.comment = e.target.value; };
+      $("next").onclick = () => {
+        if (!last){ S.i++; S.phase = "brief"; S.tip = ""; S.hintOpen = false; runSetup(TASKS[S.i]); render(true); }
+        else finish();
+      };
+    }
+  }
+
+  // ---- Intro: two navy screens, one idea each ------------------------------------------------
+  function dots(id, n){ [...$(id).children].forEach((d,k) => d.classList.toggle("ut-on", k===n)); }
+  function intro(page){
+    const m = $("introMain"); dots("introDots", page-1);
+    if (problems.length){
+      m.innerHTML = `<div class="ut-slide"><h2>This test is not set up correctly yet.</h2>
+        <div class="ut-error"><b>Fix these in test-config.js, then build again</b><ul>${problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div></div>`;
+      console.error("[usability shell] config problems:\n" + problems.join("\n"));
+      return;
+    }
+    if (page===1){
+      m.innerHTML = `<div class="ut-slide">
+          <h1>${esc(PROJECT)}<span>Usability session</span></h1>
+          <p class="ut-year">About ${esc(MINUTES)} minutes · ${TASKS.length} short tasks</p>
+          <p>${esc(CFG.pitch)} We're testing the design, not you.</p>
+          <div class="ut-groups">
+            <div><b>No wrong answers</b><span>If something is hard, that's on the design.</span></div>
+            <div><b>Think out loud</b><span>Say what you're looking for.</span></div>
+            <div><b>Skip anytime</b><span>Skipping tells us as much.</span></div>
+          </div>
+          <div class="ut-row"><button class="ut-btn ut-primary" id="ut-n1" type="button">Next</button></div>
+        </div>`;
+      $("n1").onclick = () => intro(2); $("n1").focus();
+    } else {
+      m.innerHTML = `<div class="ut-slide">
+          <h2>${esc(CFG.persona)}</h2>
+          <ol class="ut-agenda" style="--ut-rows:${Math.ceil(TASKS.length/2)}">${TASKS.map((t) => `<li><span class="ut-tm">${esc(t.time)}</span><span>${esc(t.title)}</span></li>`).join("")}</ol>
+          <p>${esc(CFG.disclaimer || "People and data are made up. Nothing is sent anywhere.")}</p>
+          <div style="display:grid;gap:6px"><label for="ut-who">Your name or participant code (optional)</label><input type="text" id="ut-who" autocomplete="off" value="${esc(S.who)}"></div>
+          <div class="ut-consent">
+            <label><input type="checkbox" id="ut-recScreen" ${REC.want.screen?"checked":""}><span>Record this page so the team can replay the session<small>Clicks, typing and screens on this page only. Not your camera or other apps.</small></span></label>
+            <label><input type="checkbox" id="ut-recVoice" ${REC.want.voice?"checked":""} ${inFrame?"disabled":""}><span>Also record my voice<small>${inFrame ? "Works when you open the HTML file directly in Chrome, Edge or Safari." : "Your browser will ask for the microphone. You can say no and still take part."}</small></span></label>
+            <label><input type="checkbox" id="ut-recCamera" ${REC.want.camera?"checked":""} ${inFrame?"disabled":""}><span>Also record my camera<small>${inFrame ? "Works when you open the HTML file directly in your browser." : "A small video of you, saved as a separate file. Off unless you tick it."}</small></span></label>
+          </div>
+          <div class="ut-row"><button class="ut-btn ut-ghost" id="ut-b2" type="button">Back</button><button class="ut-btn ut-primary" id="ut-go3" type="button">Start</button></div>
+        </div>`;
+      $("b2").onclick = () => intro(1);
+      $("who").oninput = (e) => { S.who = e.target.value.trim(); };
+      $("recScreen").onchange = (e) => { REC.want.screen = e.target.checked; };
+      $("recVoice").onchange = (e) => { REC.want.voice = e.target.checked; };
+      $("recCamera").onchange = (e) => { REC.want.camera = e.target.checked; };
+      $("go3").onclick = begin; $("go3").focus();
+    }
+  }
+  function begin(){
+    startRecording();
+    $("intro").classList.add("ut-gone");
+    S.started = new Date(); S.i = 0; S.phase = "brief";
+    syncViewport(); emit("ut:reset");
+    setTimeout(() => { runSetup(TASKS[0]); render(true); }, 60);
+  }
+
+  // ---- Finale: celebrate first, then the same two closing questions in every test ------------
+  function finish(){
+    mark("Session finished"); REC.done = stopRecording();
+    S.phase = "done"; S.finishedAt = new Date(); paintSteps(); $("gate").classList.remove("ut-show");
+    panel.innerHTML = `<p class="ut-label">Session complete</p><h1 class="ut-task">Thank you.</h1><div class="ut-row"><button class="ut-btn" id="ut-reopen" type="button">Show my results</button></div>`;
+    $("reopen").onclick = () => { $("finale").classList.remove("ut-gone"); };
+    $("finale").classList.remove("ut-gone");
+    finalePage(1);
+  }
+  function finalePage(page){
+    const m = $("finMain"), res = S.results; dots("finDots", page-1);
+    if (page===1){
+      const earned = res.filter((r) => r.status && r.status!=="skipped").length;
+      const mins = Math.max(1, Math.round((S.finishedAt - S.started)/60000));
+      const tally = FIN.tally && FIN.tally.signal ? `<div><b>${res.reduce((a,r) => a + r.trail.filter((x) => x.type===FIN.tally.signal).length, 0)}</b><span>${esc(FIN.tally.label || FIN.tally.signal)}</span></div>` : "";
+      m.innerHTML = `<div class="ut-slide" style="max-width:720px">
+          <p class="ut-kicker">${esc(FIN.kicker)}</p>
+          <h1>${esc(FIN.title)}<span>${esc(FIN.accent)}</span></h1>
+          <div class="ut-tally"><div><b>${earned}</b><span>of ${TASKS.length} badges</span></div>${tally}<div><b>${mins}</b><span>minutes</span></div></div>
+          <div class="ut-medals">${TASKS.map((t,k) => { const r = res[k], got = r.status && r.status!=="skipped";
+            return `<figure><div class="ut-medal ${got?"ut-pop":"ut-soft"}" style="animation-delay:${k*80}ms">${ICON[t.badge.icon]}</div><figcaption>${esc(t.badge.name)}<small>${got?esc(t.time):"Skipped"}</small></figcaption></figure>`; }).join("")}</div>
+          <div class="ut-row"><button class="ut-btn ut-primary" id="ut-f1" type="button">Two last questions</button></div>
+        </div>`;
+      $("f1").onclick = () => finalePage(2); $("f1").focus();
+    } else {
+      m.innerHTML = `<div class="ut-slide" style="max-width:640px">
+          <p class="ut-kicker">Almost there</p>
+          <div class="ut-q"><span class="ut-ql" id="ut-q1">Overall, how easy was ${esc(PROJECT)} to use?</span><div class="ut-scale" role="group" aria-labelledby="ut-q1" data-k="overall">${EASE.map((e,k)=>`<button type="button" data-v="${k+1}" aria-pressed="${S.closing.overall===k+1}"><b>${k+1}</b><small>${e}</small></button>`).join("")}</div></div>
+          <div class="ut-q"><span class="ut-ql" id="ut-q2">${esc(CFG.wouldUseQuestion || "Would you use something like this in your own work?")}</span><div class="ut-scale" role="group" aria-labelledby="ut-q2" data-k="likely">${LIKELY.map((e,k)=>`<button type="button" data-v="${k+1}" aria-pressed="${S.closing.likely===k+1}"><b>${k+1}</b><small>${e}</small></button>`).join("")}</div></div>
+          <div class="ut-q"><label for="ut-change" class="ut-ql" style="color:#fff">Anything you'd change? (optional)</label><textarea id="ut-change" rows="2">${esc(S.closing.change)}</textarea></div>
+          <div class="ut-row" id="ut-sendRow"><button class="ut-btn ut-ghost" id="ut-b4" type="button">Back</button><button class="ut-btn ut-primary" id="ut-send" type="button">Finish and get my results file</button></div>
+          <div class="ut-sent" id="ut-sent" hidden></div>
+        </div>`;
+      m.querySelectorAll(".ut-scale").forEach((g) => g.querySelectorAll("button").forEach((b) => b.onclick = () => {
+        S.closing[g.dataset.k] = +b.dataset.v; g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x===b))); }));
+      $("change").oninput = (e) => { S.closing.change = e.target.value; };
+      $("b4").onclick = () => finalePage(1);
+      // One file per session. The time and a short session code keep names unique when people test at once.
+      const fileName = () => { const d = S.started; const pad = (n) => String(n).padStart(2,"0");
+        return `${slug(PROJECT) || "Prototype"}-usability-${slug(S.who) || "participant"}-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${S.sid}.txt`; };
+      const mailHref = (name) => {
+        const sep = /Win/i.test(navigator.platform || "") ? ";" : ",";
+        let body = resultsText().split("\n").filter((l) => !/^\s+Trail:/.test(l)).join("\n");
+        if (body.length > 1400) body = body.slice(0, 1400) + "\n…";
+        body = `>> BEFORE YOU SEND: attach the file ${name} from your Downloads folder. <<\n\n` + body;
+        return `mailto:${RESULT_EMAILS.join(sep)}?subject=${encodeURIComponent(`${PROJECT} usability results: ${S.who || "participant"} (${S.sid})`)}&body=${encodeURIComponent(body)}`;
+      };
+      const saveFile = async (name, data) => {
+        const dl = typeof data === "string" && window.claude?.use ? await window.claude.use("downloads") : null;
+        if (dl){ await dl.save({ filename:name, data }); return; }
+        const a = document.createElement("a"); a.href = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type:"text/plain" })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      };
+      $("send").onclick = async () => {
+        const btn = $("send"); btn.disabled = true; btn.textContent = "Saving…";
+        const name = fileName();
+        await REC.done;
+        const camName = name.replace(/\.txt$/, "-camera.webm");
+        const recording = REC.events.length ? { events:REC.events, audio:REC.audio, audioAt:REC.audioAt || null, voice:REC.voice, camera: REC.camBlob ? { file:camName, at:REC.cameraAt, type:REC.camBlob.type } : null } : null;
+        const data = resultsText() + (recording ? `\nRecording: screen${REC.audio ? " and voice" : ""} included. Open this file in the Tryout replay page to watch it.` : "") + "\n\n--- machine-readable ---\n" + JSON.stringify({ kit:"tryout/1", project:PROJECT, version:VERSION, sid:S.sid, who:S.who, started:S.started, finished:S.finishedAt, results:S.results, closing:S.closing, recording });
+        const box = $("sent");
+        // 1. Fully automatic, when the team has set up a receiving address.
+        if (SUBMIT_URL){
+          try {
+            await fetch(SUBMIT_URL, { method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain" }, body: JSON.stringify({ filename:name, to:RESULT_EMAILS, subject:`${PROJECT} usability results: ${S.who || "participant"} (${S.sid})`, summary:resultsText(), content:data }) });
+            S.saved = true; $("sendRow").hidden = true; box.hidden = false;
+            box.innerHTML = `<h2>Sent. Thank you.</h2><p>Your results and recording went to the research team. You can close this page.</p>`;
+            return;
+          } catch {}
+        }
+        // 2. Otherwise: save the file and ask the participant to send it to the research team.
+        let saved = true;
+        try { await saveFile(name, data); } catch (e) { saved = false; }
+        if (REC.camBlob){ try { await saveFile(camName, REC.camBlob); } catch {} }
+        S.saved = saved; $("sendRow").hidden = true; box.hidden = false;
+        box.innerHTML = `<h2>One last step: send us your results file</h2>
+          <ol>
+            <li>${saved ? `Your results file is in your Downloads folder: <b>${esc(name)}</b>` : `Press <b>Save the file again</b> below to download your results file.`}${REC.camBlob ? ` Your camera video is there too: <b>${esc(camName)}</b>. If your browser asked to allow several downloads, press Allow.` : ""}</li>
+            <li><b>Email ${REC.camBlob ? "both files" : "that file"} to <span id="ut-addr" style="user-select:all">${RESULT_EMAILS.map(esc).join(", ")}</span></b>, or send ${REC.camBlob ? "them" : "it"} to the person who invited you another way.</li>
+          </ol>
+          <div class="ut-row"><button class="ut-btn ut-primary" id="ut-copyAddr" type="button">Copy the email address</button><a class="ut-btn ut-ghost" id="ut-mail" href="${mailHref(name)}">Open an email draft</a><button class="ut-btn ut-ghost" id="ut-again" type="button">Save the file again</button>${REC.camBlob ? `<button class="ut-btn ut-ghost" id="ut-againCam" type="button">Save the camera file again</button>` : ""}${UPLOAD_URL ? `<a class="ut-btn ut-ghost" href="${esc(UPLOAD_URL)}" target="_blank" rel="noopener">Or upload to the shared folder</a>` : ""}</div>
+          <p class="ut-fineprint">${recording ? `The file holds your session recording${REC.voice==="on" ? " and voice" : ""}${REC.camBlob ? ", and the video file holds your camera" : ""}. ` : ""}Nothing leaves your computer until you send the file.</p>`;
+        // Copying the address always works. The email draft is optional: it depends on the mail app set up on each computer.
+        $("copyAddr").onclick = async () => {
+          const b = $("copyAddr"); let ok = true;
+          try { await navigator.clipboard.writeText(RESULT_EMAILS.join(", ")); }
+          catch { try { const r = document.createRange(); r.selectNodeContents($("addr")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); ok = document.execCommand("copy"); } catch { ok = false; } }
+          b.textContent = ok ? "Copied" : "Select the address above"; setTimeout(() => { b.textContent = "Copy the email address"; }, 2500);
+        };
+        $("again").onclick = () => saveFile(name, data).then(() => { S.saved = true; }).catch(() => {});
+        if (REC.camBlob) $("againCam").onclick = () => saveFile(camName, REC.camBlob).catch(() => {});
+      };
+    }
+    $("finale").scrollTop = 0;
+  }
+  // The results summary: the same shape in every Tryout test.
+  function resultsText(){
+    const L = [];
+    const trailItem = (x) => { const { at, type, ...rest } = x; let d = Object.keys(rest).length ? " " + JSON.stringify(rest) : ""; if (d.length > 90) d = d.slice(0, 90) + "…"; return `${mmss(at)} ${type}${d}`; };
+    L.push(`${PROJECT} usability session${VERSION ? ` (${VERSION})` : ""}`);
+    L.push(`Participant: ${S.who || "not given"} · Session ${S.sid}`);
+    L.push(`Date: ${S.started.toLocaleString()} · ${Math.max(1, Math.round((S.finishedAt - S.started)/60000))} min`);
+    L.push("");
+    S.results.forEach((r,k) => {
+      const t = TASKS[k];
+      const st = r.status==="completed" ? "Completed (detected)" : r.status==="self" ? "Marked done by participant" : r.status==="skipped" ? "Skipped" : "Not reached";
+      L.push(`${k+1}. ${t.title} [${t.time}]: ${st} in ${mmss(r.secs)}${r.hints?`, ${r.hints} hint`:""}${r.ease?`, ease ${r.ease}/5 (${EASE[r.ease-1]})`:""}${r.reason?`, reason: ${r.reason}`:""}`);
+      const done = t.subs.filter(([s]) => s in r.subs).map(([s,label]) => `${label} @${mmss(r.subs[s])}`);
+      if (done.length) L.push(`   Steps: ${done.join("; ")}`);
+      if (r.comment.trim()) L.push(`   Said: "${r.comment.trim()}"`);
+      if (r.trail.length) L.push(`   Trail: ${r.trail.map(trailItem).join(", ")}`);
+    });
+    L.push("");
+    L.push(`Overall ease: ${S.closing.overall ? S.closing.overall+"/5" : "-"}`);
+    L.push(`Would use: ${S.closing.likely ? S.closing.likely+"/5" : "-"}`);
+    if (S.closing.change.trim()) L.push(`Would change: ${S.closing.change.trim()}`);
+    return L.join("\n");
+  }
+
+  // ---- Start over (two clicks, no browser confirm) -------------------------------------------
+  let armed = null;
+  $("restart").onclick = () => {
+    const b = $("restart");
+    if (!armed){ b.textContent = "Click again to start over"; b.classList.add("ut-warn"); armed = setTimeout(() => { armed = null; b.textContent = "Start over"; b.classList.remove("ut-warn"); }, 3500); return; }
+    clearTimeout(armed); armed = null; b.textContent = "Start over"; b.classList.remove("ut-warn");
+    stopClock(); stopRecording(); S = fresh(); $("finale").classList.add("ut-gone"); $("intro").classList.remove("ut-gone"); $("gate").classList.remove("ut-show");
+    emit("ut:reset"); panel.innerHTML = ""; paintSteps(); intro(1);
+  };
+
+  // Don't lose a session to an accidental tab close.
+  window.addEventListener("beforeunload", (e) => { if (S.phase!=="intro" && !S.saved){ e.preventDefault(); e.returnValue = ""; } });
+
+  // Phones get the stacked layout. Prototypes that cannot adapt with CSS alone listen for this.
+  const syncViewport = () => emit("ut:viewport", mq.matches ? "mobile" : "desktop");
+  mq.addEventListener ? mq.addEventListener("change", syncViewport) : mq.addListener(syncViewport);
+  setTimeout(syncViewport, 400);
+
+  paintSteps(); intro(1);
+})();
+</script>
+</body>
+</html>

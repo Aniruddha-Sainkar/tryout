@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tryout Test Builder</title>
+<style>
+  html,body{margin:0;min-height:100%}
+  body{background:#201E2B;color:#fff;font:15px/1.55 Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;display:flex;flex-direction:column;min-height:100vh}
+  header{padding:28px clamp(20px,5vw,72px) 0}
+  header img{height:26px}
+  main{flex:1;display:grid;align-content:center;padding:24px clamp(20px,5vw,72px);max-width:760px;gap:20px}
+  h1{font-size:clamp(30px,4.4vw,46px);line-height:1.05;margin:0}
+  h1 span{display:block;color:#F4C95D}
+  p{margin:0;color:#DAD6EA;max-width:60ch}
+  .drop{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .slot{border:1.5px dashed #413C58;border-radius:10px;padding:16px;display:grid;gap:6px;cursor:pointer;transition:border-color .2s,background .2s}
+  .slot:hover,.slot.over{border-color:#F4C95D;background:#2B2838}
+  .slot.ok{border-style:solid;border-color:#5CC98C}
+  .slot b{font-size:15px}
+  .slot span{font-size:13px;color:#B5AFD1;overflow-wrap:anywhere}
+  .slot input{display:none}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{font:inherit;font-weight:700;border:1px solid #6D5DF6;background:#6D5DF6;color:#fff;border-radius:6px;padding:12px 22px;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  .msg{font-size:14px;color:#B5AFD1}
+  .msg.bad{color:#FFB8A6}
+  .msg.good{color:#9FE3BD;font-weight:700}
+  ul{margin:0;padding-left:18px;display:grid;gap:4px}
+  footer{padding:0 clamp(20px,5vw,72px) 22px;font-size:11px;color:#8E89A8}
+  @media (max-width:640px){ .drop{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<header><span style="font-weight:800;font-size:19px">Tryout<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#F4C95D;margin-left:2px"></span></span></header>
+<main>
+  <h1>Usability test<span>builder</span></h1>
+  <p>Add the two project files and get one HTML file you can email to participants. Everything happens in this page. Nothing is uploaded.</p>
+  <div class="drop">
+    <label class="slot" id="slotC"><b>1. test-config.js</b><span id="nameC">The words and the tasks. Click or drop the file here.</span><input type="file" id="fileC" accept=".js,text/javascript"></label>
+    <label class="slot" id="slotP"><b>2. prototype.html</b><span id="nameP">The prototype being tested. Click or drop the file here.</span><input type="file" id="fileP" accept=".html,text/html"></label>
+  </div>
+  <div class="row"><button id="build" type="button" disabled>Build the test file</button><span class="msg" id="msg"></span></div>
+  <div class="msg bad" id="errs" hidden></div>
+</main>
+<footer>Tryout usability kit · the built file is self-contained and works offline.</footer>
+<script type="application/json" id="shell">/*SHELL_JSON*/</script>
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const SHELL = JSON.parse($("shell").textContent);
+  const got = { C:null, P:null };
+  async function take(k, file){
+    if (!file) return;
+    got[k] = await file.text();
+    $("name"+k).textContent = file.name + " added";
+    $("slot"+k).classList.add("ok");
+    $("build").disabled = !(got.C && got.P);
+    $("msg").textContent = ""; $("errs").hidden = true;
+  }
+  ["C","P"].forEach((k) => {
+    $("file"+k).onchange = (e) => take(k, e.target.files[0]);
+    const s = $("slot"+k);
+    s.ondragover = (e) => { e.preventDefault(); s.classList.add("over"); };
+    s.ondragleave = () => s.classList.remove("over");
+    s.ondrop = (e) => { e.preventDefault(); s.classList.remove("over"); take(k, e.dataTransfer.files[0]); };
+  });
+  // The same checks as build.py.
+  function check(config, proto){
+    const errs = [];
+    proto = proto.replace(/<!--[\s\S]*?-->/g, "");   // comments may mention anything
+    if (!config.includes("UT_CONFIG")) errs.push("test-config.js must set window.UT_CONFIG.");
+    if (/<\/script/i.test(config)) errs.push("test-config.js must not contain a closing script tag.");
+    if (/<\s*(html|head|body)[\s>]/i.test(proto)) errs.push("prototype.html must be a fragment: remove <html>, <head> and <body>.");
+    if (/(class|id)\s*=\s*["'][^"']*\but-/.test(proto)) errs.push('prototype.html uses a class or id starting with "ut-". That prefix belongs to the shell.');
+    if (!proto.includes("UT.signal") && !proto.includes("ut:signal")) errs.push("prototype.html never reports anything: call UT.signal(type, detail) when the participant acts.");
+    return errs;
+  }
+  $("build").onclick = () => {
+    const errs = check(got.C, got.P);
+    if (errs.length){ $("errs").hidden = false; $("errs").innerHTML = "<ul>" + errs.map((e) => "<li>" + e.replace(/</g,"&lt;") + "</li>").join("") + "</ul>"; return; }
+    const html = SHELL.replace("/*UT:CONFIG*/", () => got.C).replace("<!--UT:PROTOTYPE-->", () => got.P);
+    const m = got.C.match(/project\s*:\s*["']([^"']+)["']/);
+    const name = (m ? m[1].replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") : "Prototype") + "-usability-test.html";
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([html], { type:"text/html" })); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    $("msg").className = "msg good"; $("msg").textContent = "Built " + name + ". Open it and run every task once before you send it.";
+  };
+})();
+</script>
+</body>
+</html>

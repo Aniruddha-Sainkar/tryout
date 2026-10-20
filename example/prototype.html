@@ -1,0 +1,133 @@
+<!-- PROTOTYPE FRAGMENT (example: a small timesheet app)
+     Rules every prototype follows so it lives safely inside the Tryout usability shell:
+     1. This is a fragment, not a page: no <html>, <head> or <body>. It is placed inside #ut-proto.
+     2. One root element. Every CSS rule starts with that root's class (here .ts), so nothing leaks out.
+     3. No ids or classes that start with "ut-". Those belong to the shell.
+     4. Overlays use position:absolute inside the root, never the whole browser window.
+     5. Report what the participant does with UT.signal(type, detail). Report facts, not judgements.
+     6. Listen for UT.on("reset") and UT.on("setup") so the test can put the prototype in a known state.
+     7. Made-up people and data only. Nothing leaves the page. -->
+<style>
+  .ts{height:100%;display:flex;flex-direction:column;font:14px/1.45 "Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:#1B2433;background:#F6F7F9;position:relative}
+  .ts *{box-sizing:border-box}
+  .ts-bar{display:flex;align-items:center;gap:20px;padding:0 20px;background:#fff;border-bottom:1px solid #E2E5EA}
+  .ts-brand{font-weight:700;font-size:15px;padding:14px 0}
+  .ts-tabs{display:flex;gap:4px}
+  .ts-tab{background:none;border:0;border-bottom:2px solid transparent;padding:14px 10px 12px;font:inherit;color:#5A6577;cursor:pointer}
+  .ts-tab[aria-selected="true"]{color:#1B2433;font-weight:600;border-bottom-color:#2563EB}
+  .ts-main{flex:1;overflow:auto;padding:24px 20px}
+  .ts-wrap{max-width:640px;margin:0 auto;display:grid;gap:16px}
+  .ts-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .ts-h h2{font-size:20px;margin:0}
+  .ts-h span{color:#5A6577}
+  .ts-card{background:#fff;border:1px solid #E2E5EA;border-radius:8px;overflow:hidden}
+  .ts-rowi{display:grid;grid-template-columns:56px 1fr auto;gap:12px;padding:12px 16px;border-top:1px solid #EEF0F3;align-items:center}
+  .ts-rowi:first-child{border-top:0}
+  .ts-rowi b{font-variant-numeric:tabular-nums}
+  .ts-rowi small{color:#5A6577}
+  .ts-empty{padding:12px 16px;border-top:1px solid #EEF0F3;color:#9AA3B2;font-style:italic}
+  .ts-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .ts-btn{border:1px solid #CBD2DC;background:#fff;color:#1B2433;border-radius:6px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+  .ts-btn.is-primary{background:#2563EB;border-color:#2563EB;color:#fff}
+  .ts-btn:disabled{opacity:.5;cursor:default}
+  .ts-form{display:grid;grid-template-columns:1fr 1.6fr .8fr auto;gap:8px;padding:14px 16px;background:#F0F4FF;border-top:1px solid #DCE5FB;align-items:end}
+  .ts-form label{display:grid;gap:4px;font-size:12px;color:#5A6577}
+  .ts-form select,.ts-form input{font:inherit;padding:7px 8px;border:1px solid #CBD2DC;border-radius:6px;background:#fff;min-width:0;width:100%}
+  .ts-status{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#EEF0F3;color:#5A6577}
+  .ts-status.is-wait{background:#FFF4D6;color:#8A5A00}
+  .ts-status.is-ok{background:#DDF5E6;color:#17653A}
+  .ts-week{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:14px 16px;border-top:1px solid #EEF0F3;align-items:center}
+  .ts-week:first-child{border-top:0}
+  .ts-scrim{position:absolute;inset:0;background:rgba(20,28,45,.45);display:grid;place-items:center;padding:16px;z-index:5}
+  .ts-dialog{background:#fff;border-radius:10px;padding:20px;max-width:360px;display:grid;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .ts-dialog h3{margin:0;font-size:17px}
+  .ts-dialog p{margin:0;color:#5A6577}
+  @container (max-width: 520px){ .ts-form{grid-template-columns:1fr 1fr} }
+  .ts-main{container-type:inline-size}
+</style>
+
+<div class="ts" id="ts-root"></div>
+
+<script>
+(function(){
+  const root = document.getElementById("ts-root");
+  const signal = (type, detail) => window.UT && window.UT.signal(type, detail);   // works with or without the shell
+  const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+  const PROJECTS = ["Northwind portal redesign","Contoso data migration","Internal: design system"];
+  const SEED = () => ({ tab:"week", adding:false, confirming:null, submitted:false,
+    entries:[ { day:"Mon", project:PROJECTS[0], hours:8 }, { day:"Tue", project:PROJECTS[0], hours:7.5 }, { day:"Wed", project:PROJECTS[1], hours:8 } ] });
+  let st = SEED();
+  const total = () => st.entries.reduce((a,e) => a + e.hours, 0);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+  function render(){
+    const week = `
+      <div class="ts-h"><h2>This week</h2><span>29 Sep to 3 Oct · <b>${total()} h</b> logged</span></div>
+      <div class="ts-card">
+        ${DAYS.map((d) => { const es = st.entries.filter((e) => e.day===d);
+          return es.length ? es.map((e) => `<div class="ts-rowi"><b>${d}</b><span>${esc(e.project)}</span><b>${e.hours} h</b></div>`).join("")
+                           : `<div class="ts-empty">${d} · nothing logged</div>`; }).join("")}
+        ${st.adding ? `<div class="ts-form">
+            <label>Day<select data-f="day">${DAYS.map((d) => `<option>${d}</option>`).join("")}</select></label>
+            <label>Project<select data-f="project">${PROJECTS.map((p) => `<option>${esc(p)}</option>`).join("")}</select></label>
+            <label>Hours<input data-f="hours" type="number" min="0.5" max="12" step="0.5" value="8"></label>
+            <button class="ts-btn is-primary" data-act="save-entry">Save</button>
+          </div>` : ""}
+      </div>
+      <div class="ts-actions">
+        ${st.submitted ? `<span class="ts-status is-wait">Submitted · waiting for Priya Nair</span>`
+          : `<button class="ts-btn" data-act="add">${st.adding ? "Cancel" : "Add time"}</button><button class="ts-btn is-primary" data-act="submit" data-from="week">Submit week</button>`}
+      </div>`;
+    const history = `
+      <div class="ts-h"><h2>History</h2><span>Your submitted weeks</span></div>
+      <div class="ts-card">
+        <div class="ts-week"><span><b>29 Sep to 3 Oct</b><br><small>This week</small></span><b>${total()} h</b>
+          ${st.submitted ? `<span class="ts-status is-wait">Waiting</span>` : `<button class="ts-btn" data-act="submit" data-from="history">Submit</button>`}</div>
+        <div class="ts-week"><span><b>22 to 26 Sep</b><br><small>Last week</small></span><b>38.5 h</b><span class="ts-status is-ok">Approved</span></div>
+        <div class="ts-week"><span><b>15 to 19 Sep</b></span><b>40 h</b><span class="ts-status is-ok">Approved</span></div>
+      </div>`;
+    root.innerHTML = `
+      <div class="ts-bar"><span class="ts-brand">Timesheet</span>
+        <div class="ts-tabs" role="tablist">
+          <button class="ts-tab" role="tab" data-tab="week" aria-selected="${st.tab==="week"}">This week</button>
+          <button class="ts-tab" role="tab" data-tab="history" aria-selected="${st.tab==="history"}">History</button>
+        </div></div>
+      <div class="ts-main"><div class="ts-wrap">${st.tab==="week" ? week : history}</div></div>
+      ${st.confirming ? `<div class="ts-scrim"><div class="ts-dialog" role="dialog" aria-modal="true">
+          <h3>Submit ${total()} hours?</h3><p>Priya Nair will get your timesheet for 29 Sep to 3 Oct to approve.</p>
+          <div class="ts-actions"><button class="ts-btn" data-act="cancel-submit">Not yet</button><button class="ts-btn is-primary" data-act="confirm-submit">Submit</button></div>
+        </div></div>` : ""}`;
+  }
+
+  root.addEventListener("click", (e) => {
+    const tab = e.target.closest("[data-tab]");
+    if (tab){ st.tab = tab.dataset.tab; st.adding = false; signal("tab-opened", { tab: st.tab }); render(); return; }
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const act = b.dataset.act;
+    if (act==="add"){ st.adding = !st.adding; if (st.adding) signal("add-started"); }
+    if (act==="save-entry"){
+      const f = (k) => root.querySelector(`[data-f="${k}"]`).value;
+      const entry = { day:f("day"), project:f("project"), hours:parseFloat(f("hours")) || 0 };
+      st.entries.push(entry); st.adding = false;
+      signal("entry-added", entry);
+    }
+    if (act==="submit"){ st.confirming = b.dataset.from; signal("submit-started", { from: st.confirming }); }
+    if (act==="cancel-submit"){ st.confirming = null; signal("submit-cancelled"); }
+    if (act==="confirm-submit"){ const from = st.confirming; st.confirming = null; st.submitted = true; signal("submitted", { from, hours: total() }); }
+    render();
+  });
+
+  // The test controls the starting state through these two events.
+  if (window.UT){
+    UT.on("reset", () => { st = SEED(); render(); });
+    UT.on("setup", (s) => {
+      if (s.screen) st.tab = s.screen;
+      // Each task guarantees what it needs, so it never depends on an earlier task having gone well.
+      if (s.ensureThursday && !st.entries.some((e) => e.day==="Thu")) st.entries.push({ day:"Thu", project:PROJECTS[0], hours:6 });
+      st.adding = false; st.confirming = null;
+      render();
+    });
+  }
+  render();
+})();
+</script>
