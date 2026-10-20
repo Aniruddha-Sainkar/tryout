@@ -12,7 +12,7 @@ A short walkthrough of a Tryout session, from the intro to the replay.
 
 https://github.com/Aniruddha-Sainkar/tryout/raw/main/docs/tryout-demo.mp4
 
-If the player does not load, [download the demo](docs/tryout-demo.mp4) (about one minute).
+Prefer YouTube? [Watch the demo there](https://youtu.be/B6m9eyfLMAM). If the player above does not load, [download it](docs/tryout-demo.mp4) (about one minute).
 
 ![The intro screen](docs/intro.jpg)
 
