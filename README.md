@@ -6,6 +6,14 @@ Tryout turns a prototype into an unmoderated usability test that you can email t
 
 It was built for a real product team that needed to run tests across projects and get the same format every time. Then it was made generic, so any team can use it. An AI tool can build a complete test from your designs or prototype with the prompt in this kit, and you can also edit everything by hand.
 
+## Demo
+
+A short walkthrough of a Tryout session, from the intro to the replay.
+
+https://github.com/Aniruddha-Sainkar/tryout/raw/main/docs/tryout-demo.mp4
+
+If the player does not load, [download the demo](docs/tryout-demo.mp4) (about one minute).
+
 ![The intro screen](docs/intro.jpg)
 
 ![A task on the left, the live prototype on the right](docs/task.jpg)
